@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name="DDoS-Classification"
-#SBATCH --partition=kestrel-gpu
+#SBATCH --partition=peregrine-gpu
 #SBATCH --qos=gpu_debug
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=2
 #SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=1G
+#SBATCH --mem-per-cpu=4G
 #SBATCH --gres=gpu:nvidia_a100_3g.39gb:2
 #SBATCH --time=00:05:00
 
