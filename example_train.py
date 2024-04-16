@@ -1,7 +1,3 @@
-# These first two lines allow us to import classes from Util.
-import sys
-sys.path.append('../utilities')
-
 from SetupInfo import SlurmSetup
 
 from dataclasses import dataclass
