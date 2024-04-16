@@ -1,77 +1,160 @@
-import os
+# These first two lines allow us to import classes from Util.
+import sys
+sys.path.append('../utilities')
+
+from SetupInfo import SlurmSetup
+
+from dataclasses import dataclass
+from torch import Tensor
+from torch.nn import L1Loss, Linear, Module, Sequential
+from torch.nn.parallel import DistributedDataParallel
+from torch.optim import Adam
+from torch.utils.data import DataLoader, Dataset
+from torch.utils.data.distributed import DistributedSampler
+
 import torch
-import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.utils.data import DataLoader, DistributedSampler
-from torchvision import datasets, transforms
-from torchvision.models import resnet50
 
-def setup(rank, world_size):
-    # Initialize process group
-    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+BATCH_SIZE = 40
+EPOCH_COUNT = 3
+TRAIN_DATA_SIZE = 4000
+TEST_DATA_SIZE = 80
 
-def cleanup():
-    # Properly shutdown process
-    dist.destroy_process_group()
+class QuadraticData(Dataset):
+    """A dataset representing quadratic equations.
+    Each equation will be of the form "ax^2 + bx + c".
+    The neural network will take a, b, c, and x as inputs.
+    """
+    
+    def __init__(self, size: int) -> None:
+        # For the quadratic equations, we need four values per input: a, b, c, and x.
+        # We'll construct this as a 2D tensor.
+        # The DataLoader expects the first dimension to be a single sample
+        # and all other dimensions to be a single input into the model.
+        # For our purpose, we only need two dimensions: one of length "size",
+        # and the other of length 4 (for a, b, c, and x respectively).
+        self.inputs = torch.rand((size, 4), device='cuda')
 
-def prepare_dataset(batch_size):
-    # Data transformations
-    transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    ])
+    def __len__(self):
+        return self.inputs.shape[0]
+    
+    def __getitem__(self, idx):
+        """Returns two elements: the input to your model and the expected output of the model.
+        Both values must be tensors."""
+        input_value = self.inputs[idx]
+        return input_value, self.compute(input_value)
+    
+    def compute(self, input: Tensor) -> Tensor:
+        """Performs the quadratic computation desired."""
+        (a,b,c,x) = input
+        return ((a*x*x) + (b*x) + c).reshape((-1))
 
-    # Load dataset and distributed samplers
-    train_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-    train_sampler = DistributedSampler(train_dataset)
-    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, sampler=train_sampler)
-    return train_loader
+class MyNeuralNetwork(Module):
+    """The neural network model to train."""
 
-def train(rank, world_size):
-    # Run setup and initalize distributed model and training loader
-    setup(rank, world_size)
-    model = resnet50().to(rank)
-    ddp_model = DDP(model, device_ids=[rank])
-    train_loader = prepare_dataset(batch_size=32)
+    def __init__(self):
+        super().__init__()
 
-    # Setup optimizer and loss functions
-    optimizer = torch.optim.SGD(ddp_model.parameters(), lr=0.01, momentum=0.9)
-    criterion = torch.nn.CrossEntropyLoss().to(rank)
+        # We'll simply make a 4-layer neural network.
+        # See the link below for different kinds of neural network layers PyTorch has.
+        # https://pytorch.org/docs/stable/nn.html
+        self.layers = Sequential(
+            Linear(4, 10),      # 4 inputs, 10 outputs
+            Linear(10, 20),     # 10 inputs, 20 outputs
+            Linear(20, 5),      # 20 inputs, 5 outputs
+            Linear(5, 1)        # 5 inputs, 1 output
+        )
 
-    # Loop over the number of epochs
-    for epoch in range(10):
-        # Put model in training mode, loop over samples in train loader
-        ddp_model.train()
-        train_loader.sampler.set_epoch(epoch)
-        for i, (inputs, labels) in enumerate(train_loader, 0):
-            # Perform distributed training logic
-            inputs = inputs.to(rank)
-            labels = labels.to(rank)
+    def forward(self, x: Tensor) -> Tensor:
+        return self.layers(x)
+
+def main() -> None:
+    """The entry point for this script."""
+    
+    # Get the information about how this script was distributed.
+    # PyTorch doesn't automatically establish communication, so we have to do it ourselves.
+    setup = SlurmSetup()
+    print(f'Rank {setup.rank}: starting up.')
+    setup.establish_communication()
+    print(f'Rank {setup.rank}: communication is ready.')
+
+    # All processes create a data loader from our custom quadratic dataset and a distributed sampler.
+    # We'll force PyTorch to use a specific seed so all instances of the script generate the same data.
+    torch.manual_seed(0)
+    dataset = QuadraticData(TRAIN_DATA_SIZE)
+    sampler = DistributedSampler(dataset, num_replicas=setup.world_size, rank=setup.rank)
+    data_loader = DataLoader(dataset, sampler=sampler, batch_size=BATCH_SIZE)
+
+    # All processes create an instance of our model and wrap it in Distributed Data Parallel,
+    # which will handle all the distributed communication for us.
+    # We'll put it on the GPU with the same ID as this process's local rank (the rank on this node).
+    base_model = MyNeuralNetwork().to('cuda')
+    model = DistributedDataParallel(base_model).to('cuda')
+
+    # For training, we will need a loss function and an optimizer.
+    # See the links below for different kinds of loss functions and optimizers PyTorch has.
+    # https://pytorch.org/docs/stable/nn.html
+    # https://pytorch.org/docs/stable/optim.html
+    loss_function = L1Loss()
+    optimizer = Adam(model.parameters(), lr=0.001)
+
+    # Train the model for the desired number of epochs.
+    for epoch in range(EPOCH_COUNT):
+        print(f'Rank {setup.rank}: starting training epoch {epoch}.')
+
+        # Put the model into training mode.
+        model.train()
+
+        # Iterate through all batches in the data loader.
+        for batch_index, (input_batch, target_batch) in enumerate(data_loader):
+            # Send the data to the GPU.
+            input_batch = input_batch.to('cuda')
+            target_batch = target_batch.to('cuda')
+
+            # Clear the gradient from the previous batch and do a forward pass through the model.
+            # PyTorch automatically handles the fact that we've put an entire batch of data into the model at once.
             optimizer.zero_grad()
-            outputs = ddp_model(inputs)
-            loss = criterion(outputs, labels)
-            loss.backward()
+            output_batch = model(input_batch)
+
+            # Compute the loss and use that to do a backwards pass through our model.
+            # Then take a step of our optimizer.
+            # Since we're using DDP, PyTorch handles all the communications for us.
+            loss_batch = loss_function(output_batch, target_batch)
+            loss_batch.backward()
             optimizer.step()
 
-            # Print the loss
-            if i % 10 == 0 and rank == 0:
-                print(f"[{epoch}, {i}] loss: {loss.item()}")
+        print(f'Rank {setup.rank}: completed epoch {epoch}.')
+        
+        # Save a copy of the model at the end of each epoch.
+        # Only the main process should do this, otherwise all the processes
+        # will write to the same file at the same time, corrupting it.
+        if setup.is_main_process():
+            torch.save(model.state_dict(), f'model_epoch_{epoch}')
 
-    # Run cleanup before exiting
-    cleanup()
+    # Evaluate the model using a brand new dataset.
+    # We'll only do this on the main node, that way we don't have to combine several loss outputs.
+    if setup.is_main_process():
+        # We'll still put the testing data into a data loader, but we don't need a distributed sampler.
+        dataset = QuadraticData(TRAIN_DATA_SIZE)
+        data_loader = DataLoader(dataset, sampler=sampler, batch_size=BATCH_SIZE)
 
-def main():
-    # Get the environment variables from slurm 
-    rank = int(os.getenv("SLURM_PROCID", "0"))
-    world_size = int(os.getenv("SLURM_NTASKS", "1"))
-    local_rank = int(os.getenv("SLURM_LOCALID", "0"))
+        # Put the model into evaluation mode, tell PyTorch we don't need to compute gradients right now,
+        # then run through all the data to compute our loss.
+        test_loss = 0
+        model.eval()
+        with torch.no_grad():
+            for input_batch, target_batch in data_loader:
+                # Move our intput and target to the GPU.
+                input_batch = input_batch.to('cuda')
+                target_batch = target_batch.to('cuda')
+                
+                output_batch = model(input_batch)
 
-    # Set the device and run train
-    torch.cuda.set_device(local_rank)
-    train(rank, world_size)
+                # Calling ".item()" moves the value from the GPU to the CPU.
+                test_loss += loss_function(output_batch, target_batch).item()
 
-# Run main function
-if __name__=="__main__":
+        print(f'Rank {setup.rank}: The final loss is: {test_loss}.')
+    
+    print(f'Rank {setup.rank}: Done training.')
+
+if __name__ == '__main__':
     main()
