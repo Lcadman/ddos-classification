@@ -41,15 +41,16 @@ class BinaryClassificationDataset(Dataset):
             idx = idx.tolist()
 
         # Grab last column as label
-        sample = self.data.iloc[idx, :-1]
+        sample = self.data.iloc[idx, :-1].values.astype('float')
         label = self.data.iloc[idx, -1].astype('int')
 
         # Transform the samples if present
         if self.transform:
-            sample = self.transform(sample.values.astype('float'))
+            sample = self.transform(sample)
 
         # Return the samples and labels as torch tensors
-        return torch.tensor(sample, dtype=torch.float32), torch.tensor(label, dtype=torch.int64)
+        # perhaps this: return torch.tensor(sample, dtype=torch.float32), torch.tensor(label, dtype=torch.int64)
+        return torch.tensor(sample), torch.tensor(label)
 
 
 def main():
