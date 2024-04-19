@@ -32,14 +32,6 @@ def load_and_preprocess(csv_files, chunksize=100000):
             chunk.replace(['Infinity', ''], np.nan, inplace=True)
             chunk.dropna(inplace=True)
 
-            # Convert all columns to floats now that it is safe
-            for col in chunk.columns:
-                try:
-                    chunk[col] = chunk[col].astype(float)
-                except ValueError:
-                    # Handle or log columns that cannot be converted to float
-                    print(f"Warning: Column {col} could not be converted to float.")
-
             # Feature reduction and label processing
             chunk.drop('Unnamed: 0', axis=1, inplace=True)
             chunk.drop('Flow ID', axis=1, inplace=True)
@@ -50,6 +42,14 @@ def load_and_preprocess(csv_files, chunksize=100000):
             chunk.drop(' Timestamp', axis=1, inplace=True)
             chunk.drop('SimillarHTTP', axis=1, inplace=True)
             chunk[' Label'] = chunk[' Label'].apply(lambda x: 0 if x == 'BENIGN' else 1)
+
+            # Convert all columns to floats now that it is safe
+            for col in chunk.columns:
+                try:
+                    chunk[col] = chunk[col].astype(float)
+                except ValueError:
+                    # Handle or log columns that cannot be converted to float
+                    print(f"Warning: Column {col} could not be converted to float.")
 
             # Separate BENIGN and attack data
             benign_chunk = chunk[chunk[" Label"] == 0]
