@@ -84,7 +84,7 @@ def main():
     for data, labels in train_loader:
         print(data.shape, labels.shape)
         print("First sample data:", data[0])
-+       print("First sample label:", labels[0])
+        print("First sample label:", labels[0])
 
 # Run main function
 if __name__ == "__main__":
