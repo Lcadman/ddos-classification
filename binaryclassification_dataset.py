@@ -23,7 +23,7 @@ def load_and_preprocess(csv_files, chunksize=100000):
         # Control the sampling rate to give roughly 70K samples from each file based on its size
         sampling_fraction = 70000.0 / count_rows_unix(file)
         # Loop over the CSV and grab chunks
-        for chunk in pd.read_csv(file, chunksize=chunksize, low_memory=False):
+        for chunk in pd.read_csv(file, chunksize=chunksize, dtype=str):
             # Increment chunk counter, display
             count += 1
             print("On chunk number: " + str(count))
