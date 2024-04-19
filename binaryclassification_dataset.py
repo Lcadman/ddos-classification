@@ -45,11 +45,7 @@ def load_and_preprocess(csv_files, chunksize=100000):
 
             # Convert all columns to floats now that it is safe
             for col in chunk.columns:
-                try:
-                    chunk[col] = chunk[col].astype(float)
-                except ValueError:
-                    # Handle or log columns that cannot be converted to float
-                    print(f"Warning: Column {col} could not be converted to float.")
+                chunk[col] = chunk[col].astype(float)
 
             # Separate BENIGN and attack data
             benign_chunk = chunk[chunk[" Label"] == 0]
