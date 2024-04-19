@@ -1,9 +1,8 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
-import pandas as pd
 import subprocess
 import random
-
+import numpy as np
 
 def count_rows_unix(filename):
     # Function to count the rows on a file
@@ -29,16 +28,20 @@ def load_and_preprocess(csv_files, chunksize=100000):
             count += 1
             print("On chunk number: " + str(count))
 
-            chunk.drop("Unnamed: 0", axis=1, inplace=True)
-            chunk.drop("Flow ID", axis=1, inplace=True)
-            chunk.drop(" Source IP", axis=1, inplace=True)
-            chunk.drop(" Source Port", axis=1, inplace=True)
-            chunk.drop(" Destination IP", axis=1, inplace=True)
-            chunk.drop(" Destination Port", axis=1, inplace=True)
-            chunk.drop(" Timestamp", axis=1, inplace=True)
-            chunk.drop("SimillarHTTP", axis=1, inplace=True)
+            # Replace 'inf' and '-inf' with 'NaN' then drop rows with 'NaN'
+            chunk.replace(['inf', '-inf'], np.nan, inplace=True)
+            chunk.dropna(inplace=True)
 
-            chunk[" Label"] = chunk[" Label"].apply(lambda x: 0 if x == "BENIGN" else 1)
+            # Feature reduction and label processing
+            chunk.drop('Unnamed: 0', axis=1, inplace=True)
+            chunk.drop('Flow ID', axis=1, inplace=True)
+            chunk.drop(' Source IP', axis=1, inplace=True)
+            chunk.drop(' Source Port', axis=1, inplace=True)
+            chunk.drop(' Destination IP', axis=1, inplace=True)
+            chunk.drop(' Destination Port', axis=1, inplace=True)
+            chunk.drop(' Timestamp', axis=1, inplace=True)
+            chunk.drop('SimillarHTTP', axis=1, inplace=True)
+            chunk[' Label'] = chunk[' Label'].apply(lambda x: 0 if x == 'BENIGN' else 1)
 
             # Separate BENIGN and attack data
             benign_chunk = chunk[chunk[" Label"] == 0]
