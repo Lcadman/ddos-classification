@@ -45,9 +45,9 @@ def load_and_preprocess(csv_files, chunksize=100000):
 
             # Separate BENIGN and attack data
             benign_chunk = chunk[chunk[" Label"] == 0]
-            attack_chunk = chunk[chunk[" Label"] != 1]
+            attack_chunk = chunk[chunk[" Label"] == 1]
 
-            # Sample non-BENIGN data if necessary
+            # Sample attack data if necessary
             if len(attack_chunk) > 1:
                 attack_chunk = attack_chunk.sample(
                     frac=sampling_fraction, random_state=random.randint(0, 10000)
