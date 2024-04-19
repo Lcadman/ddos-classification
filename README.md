@@ -12,3 +12,4 @@ References:
 * https://ieeexplore.ieee.org/document/9664685
 * https://www.researchgate.net/publication/358884690_Using_Machine_Learning_Techniques_to_Detect_Attacks_in_Computer_Networks
 * https://www.mdpi.com/2079-9292/10/11/1257
+* https://www.kaggle.com/datasets/rodrigorosasilva/cic-ddos2019-30gb-full-dataset-csv-files
