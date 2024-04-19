@@ -23,14 +23,22 @@ def load_and_preprocess(csv_files, chunksize=100000):
         # Control the sampling rate to give roughly 70K samples from each file based on its size
         sampling_fraction = 70000.0 / count_rows_unix(file)
         # Loop over the CSV and grab chunks
-        for chunk in pd.read_csv(file, chunksize=chunksize, low_memory=False):
+        for chunk in pd.read_csv(file, chunksize=chunksize, dtype=str):
             # Increment chunk counter, display
             count += 1
             print("On chunk number: " + str(count))
 
-            # Replace 'inf' and '-inf' with 'NaN' then drop rows with 'NaN'
-            chunk.replace(['inf', '-inf'], np.nan, inplace=True)
+            # Replace Infinity and missing values with 'NaN' then drop rows with 'NaN'
+            chunk.replace(['Infinity', ''], np.nan, inplace=True)
             chunk.dropna(inplace=True)
+
+            # Convert all columns to floats now that it is safe
+            for col in chunk.columns:
+                try:
+                    chunk[col] = chunk[col].astype(float)
+                except ValueError:
+                    # Handle or log columns that cannot be converted to float
+                    print(f"Warning: Column {col} could not be converted to float.")
 
             # Feature reduction and label processing
             chunk.drop('Unnamed: 0', axis=1, inplace=True)
