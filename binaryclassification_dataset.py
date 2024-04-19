@@ -14,15 +14,22 @@ def load_and_preprocess(csv_files, chunksize=100000):
     benign_data = []
     attack_data = []
     
+    # Counter for chunks
+    count = 0
+
     # Loop over all the passed CSV files
     for file in csv_files:
         # Control the sampling rate to give roughly 70K samples from each file based on its size
         sampling_fraction = 70000.0 / count_rows_unix(file)
         # Loop over the CSV and grab chunks
         for chunk in pd.read_csv(file, chunksize=chunksize):
+            # Increment chunk counter, display
+            count += 1
+            print("On chunk number: " + str(chunk))
+
             # Separate BENIGN and attack data
-            benign_chunk = chunk[chunk['Label'] == 'BENIGN']
-            attack_chunk = chunk[chunk['Label'] != 'BENIGN']
+            benign_chunk = chunk[chunk[' Label'] == 'BENIGN']
+            attack_chunk = chunk[chunk[' Label'] != 'BENIGN']
             
             # Sample non-BENIGN data if necessary
             if len(attack_chunk) > 1:
