@@ -13,8 +13,10 @@ class MinMaxTransform:
         self.scaler.fit(data)
 
     def __call__(self, sample):
-        # Apply the transformation to the sample
-        return self.scaler.transform(sample.reshape(1, -1)).flatten()
+        feature_names = self.scaler.feature_names_in_
+        sample_df = pd.DataFrame(sample.reshape(1, -1), columns=feature_names)
+        transformed_sample = self.scaler.transform(sample_df)
+        return transformed_sample.flatten()
 
 class BinaryClassificationDataset(Dataset):
     def __init__(self, attack_file, benign_file, transform=None):
