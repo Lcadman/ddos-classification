@@ -13,6 +13,7 @@ class MinMaxTransform:
         self.scaler.fit(data)
 
     def __call__(self, sample):
+        # Make sure that we run the transform with the features loaded
         feature_names = self.scaler.feature_names_in_
         sample_df = pd.DataFrame(sample.reshape(1, -1), columns=feature_names)
         transformed_sample = self.scaler.transform(sample_df)
@@ -23,12 +24,11 @@ class BinaryClassificationDataset(Dataset):
         # Load data from files
         self.attack_data = pd.read_csv(attack_file)
         self.benign_data = pd.read_csv(benign_file)
-        
+
         # Combine the datasets
         self.data = pd.concat([self.attack_data, self.benign_data], ignore_index=True)
-        
-        # Optionally shuffle the data if the model training requires randomness, run transforms
-        self.data = self.data.sample(frac=1).reset_index(drop=True)
+
+        # Store transform
         self.transform = transform
 
     def __len__(self):
@@ -49,7 +49,7 @@ class BinaryClassificationDataset(Dataset):
             sample = self.transform(sample)
 
         # Return the samples and labels as torch tensors
-        # perhaps this: return torch.tensor(sample, dtype=torch.float32), torch.tensor(label, dtype=torch.int64)
+        # TODO maybe this if data is not rightly typed: return torch.tensor(sample, dtype=torch.float32), torch.tensor(label, dtype=torch.int64)
         return torch.tensor(sample), torch.tensor(label)
 
 
@@ -82,7 +82,9 @@ def main():
 
     # Example: Iterate over the train loader
     for data, labels in train_loader:
-        print(data.shape, labels.shape) 
+        print(data.shape, labels.shape)
+        print("First sample data:", data[0])
++       print("First sample label:", labels[0])
 
 # Run main function
 if __name__ == "__main__":
