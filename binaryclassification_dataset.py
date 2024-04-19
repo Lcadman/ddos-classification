@@ -34,6 +34,7 @@ def load_and_preprocess(csv_files, chunksize=100000):
             chunk.drop(' Destination IP', axis=1, inplace=True)
             chunk.drop(' Destination Port', axis=1, inplace=True)
             chunk.drop(' Timestamp', axis=1, inplace=True)
+            chunk.drop('SimillarHTTP', axis=1, inplace=True)
 
             chunk[' Label'] = chunk[' Label'].apply(lambda x: 0 if x == 'BENIGN' else 1)
 
