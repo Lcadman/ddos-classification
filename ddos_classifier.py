@@ -3,7 +3,7 @@ from torch.utils.data import Dataset, DataLoader
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import torch.nn as nn
-
+from tqdm import tqdm
 
 class MinMaxTransform:
     def __init__(self):
@@ -60,20 +60,24 @@ class LSTMModel(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_layers, output_dim=1):
         # Initialize the model
         super(LSTMModel, self).__init__()
+
         # Set the model parameters
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
+
         # Define the LSTM layer
         self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_dim, output_dim)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
-        # Initialize hidden state
+        # Initialize the hidden state
         h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
-        # Initialize cell state
+
+        # Initialize the cell state
         c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
-        # Forward pass
+
+        # Forward pass on this sample
         out, _ = self.lstm(x, (h0, c0))
         out = self.fc(out[:, -1, :])
         return self.sigmoid(out)
@@ -87,7 +91,7 @@ def train(model, train_loader, criterion, optimizer):
     total = 0
 
     # Loop over train loader
-    for data, labels in train_loader:
+    for data, labels in tqdm(train_loader):
         # Ensure labels are in the correct shape
         data, labels = data.float(), labels.float().unsqueeze(1)
 
@@ -123,7 +127,7 @@ def test(model, test_loader, criterion):
 
     # Disable gradient updates, loop over test loader
     with torch.no_grad():
-        for data, labels in test_loader:
+        for data, labels in tqdm(test_loader):
             # Ensure labels are in the correct shape
             data, labels = data.float(), labels.float().unsqueeze(1)
 
@@ -187,7 +191,7 @@ def main():
     )
 
     # Setup model, loss function, and optimizer
-    hidden_dim = 50  # Hidden layer dimension
+    hidden_dim = 50
     num_layers = 2
     num_features = train_dataset[0][0].shape[0]
     model = LSTMModel(
