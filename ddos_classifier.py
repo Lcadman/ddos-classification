@@ -101,7 +101,7 @@ def train(model, train_loader, criterion, optimizer):
         # Ensure labels are in the correct shape
         data, labels = data.float(), labels.float().unsqueeze(1)
 
-        date.to(device)
+        data.to(device)
         labels.to(device)
 
         # Reset gradients each batch
@@ -134,7 +134,7 @@ def test(model, test_loader, criterion):
     correct = 0
     total = 0
 
-    date.to(device)
+    data.to(device)
     labels.to(device)
 
     # Disable gradient updates, loop over test loader
