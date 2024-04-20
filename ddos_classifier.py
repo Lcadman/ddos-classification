@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
+import torch.nn as nn
 
 class MinMaxTransform:
     def __init__(self):
@@ -18,6 +19,7 @@ class MinMaxTransform:
         sample_df = pd.DataFrame(sample.reshape(1, -1), columns=feature_names)
         transformed_sample = self.scaler.transform(sample_df)
         return transformed_sample.flatten()
+
 
 class BinaryClassificationDataset(Dataset):
     def __init__(self, attack_file, benign_file, transform=None):
@@ -53,6 +55,70 @@ class BinaryClassificationDataset(Dataset):
         return torch.tensor(sample), torch.tensor(label)
 
 
+def train(model, train_loader, criterion, optimizer):
+    # Set the model to training mode, save variables for tracking metrics
+    model.train()
+    running_loss = 0.0
+    correct = 0
+    total = 0
+
+    # Loop over train loader
+    for data, labels in train_loader:
+        # Ensure labels are in the correct shape
+        data, labels = data.float(), labels.float().unsqueeze(1)
+        
+        # Reset gradients each batch
+        optimizer.zero_grad()
+        
+        # Forward pass on batch
+        outputs = model(data)
+        loss = criterion(outputs, labels)
+        
+        # Backward pass and step optimizer
+        loss.backward()
+        optimizer.step()
+        
+        # Calculate loss and accuracy, store correct predictions
+        running_loss += loss.item()
+        predicted = outputs.round()
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+
+    # Return the average loss and accuracy
+    avg_loss = running_loss / len(train_loader)
+    accuracy = 100 * correct / total
+    return avg_loss, accuracy
+
+
+def test(model, test_loader, criterion):
+    # Set the model to evaluation mode, save variables for tracking metrics
+    model.eval()
+    running_loss = 0.0
+    correct = 0
+    total = 0
+
+    # Disable gradient updates, loop over test loader
+    with torch.no_grad():
+        for data, labels in test_loader:
+            # Ensure labels are in the correct shape
+            data, labels = data.float(), labels.float().unsqueeze(1)
+
+            # Forward pass on batch
+            outputs = model(data)
+            loss = criterion(outputs, labels)
+
+            # Calculate loss and accuracy, store correct predictions
+            running_loss += loss.item()
+            predicted = outputs.round()
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    # Return the average loss and accuracy
+    avg_loss = running_loss / len(test_loader)
+    accuracy = 100 * correct / total
+    return avg_loss, accuracy
+
+
 def main():
     # Define file paths
     train_attack = '/s/bach/b/class/cs535/cs535b/binaryclassificationdataset/train_attack.csv'
@@ -80,11 +146,21 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=1000, shuffle=True, num_workers=4)
     test_loader = DataLoader(test_dataset, batch_size=1000, shuffle=False, num_workers=4)
 
-    # Example: Iterate over the train loader
-    for data, labels in train_loader:
-        print(data.shape, labels.shape)
-        print("First sample data:", data[0])
-        print("First sample label:", labels[0])
+    # Setup model, loss function, and optimizer
+    model = FINDME()
+    criterion = nn.BCELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+    # Loop over each epoch
+    for epoch in range(10):
+            # Train the model and print loss and accuracy
+            train_loss, train_accuracy = train(model, train_loader, criterion, optimizer)
+            print(f'Epoch {epoch+1}, Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.2f}%')
+            
+            # Test the model and print loss and accuracy
+            test_loss, test_accuracy = test(model, test_loader, criterion)
+            print(f'Epoch {epoch+1}, Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%')
+
 
 # Run main function
 if __name__ == "__main__":
