@@ -5,6 +5,12 @@ from sklearn.preprocessing import MinMaxScaler
 import torch.nn as nn
 from tqdm import tqdm
 
+device = (
+    "cuda"
+    if torch.cuda.is_available()
+    else ("mps" if torch.backends.mps.is_available() else "cpu")
+)
+
 class MinMaxTransform:
     def __init__(self):
         # Initialize the MinMaxScaler
@@ -95,6 +101,9 @@ def train(model, train_loader, criterion, optimizer):
         # Ensure labels are in the correct shape
         data, labels = data.float(), labels.float().unsqueeze(1)
 
+        date.to(device)
+        labels.to(device)
+
         # Reset gradients each batch
         optimizer.zero_grad()
 
@@ -124,6 +133,9 @@ def test(model, test_loader, criterion):
     running_loss = 0.0
     correct = 0
     total = 0
+
+    date.to(device)
+    labels.to(device)
 
     # Disable gradient updates, loop over test loader
     with torch.no_grad():
@@ -197,6 +209,7 @@ def main():
     model = LSTMModel(
         input_dim=num_features, hidden_dim=hidden_dim, num_layers=num_layers
     )
+    model.to(device)
     criterion = nn.BCELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
