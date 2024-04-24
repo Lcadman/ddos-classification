@@ -37,6 +37,10 @@ class BinaryClassificationDataset(Dataset):
         self.attack_data = pd.read_csv(attack_file)
         self.benign_data = pd.read_csv(benign_file)
 
+        # For binary classification, modify the labels to be integers
+        self.benign_data.iloc[:, -1] = 0
+        self.attack_data.iloc[:, -1] = 1
+
         # Combine the datasets
         self.data = pd.concat([self.attack_data, self.benign_data], ignore_index=True)
 
@@ -65,7 +69,7 @@ class BinaryClassificationDataset(Dataset):
 
 
 class BinaryClassifier(nn.Module):
-    def __init__(self):
+    def __init__(self): # TODO clean me up and understand me, also maybe try an additional model type for comparison
         super(BinaryClassifier, self).__init__()
         self.layer1 = nn.Linear(79, 128)  # Input layer to first hidden layer
         self.relu = nn.ReLU()             # Activation function
