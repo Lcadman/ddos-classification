@@ -4,6 +4,7 @@ import subprocess
 import random
 import numpy as np
 
+
 def count_rows_unix(filename):
     # Function to count the rows on a file
     result = subprocess.run(["wc", "-l", filename], text=True, capture_output=True)
@@ -41,11 +42,10 @@ def load_and_preprocess(csv_files, chunksize=100000):
             chunk.drop(' Destination Port', axis=1, inplace=True)
             chunk.drop(' Timestamp', axis=1, inplace=True)
             chunk.drop('SimillarHTTP', axis=1, inplace=True)
-            chunk[' Label'] = chunk[' Label'].apply(lambda x: 0 if x == 'BENIGN' else 1)
 
-            # Separate BENIGN and attack data
-            benign_chunk = chunk[chunk[" Label"] == 0]
-            attack_chunk = chunk[chunk[" Label"] == 1]
+            # Separate BENIGN and attack data, leave in string form we will handle in Pytorch
+            benign_chunk = chunk[chunk[" Label"] == "BENIGN"]
+            attack_chunk = chunk[chunk[" Label"] != "BENIGN"]
 
             # Sample attack data if necessary
             if len(attack_chunk) > 1:
@@ -113,6 +113,7 @@ csv_files = [
     "/s/bach/b/class/cs535/cs535b/03-11/UDP.csv",
     "/s/bach/b/class/cs535/cs535b/03-11/UDPLag.csv",
 ]
+
 
 # Run the processing
 process_files(csv_files)

@@ -5,6 +5,7 @@ from sklearn.preprocessing import MinMaxScaler
 import torch.nn as nn
 from tqdm import tqdm
 
+# TODO Parallelize me!
 
 device = (
     "cuda"
@@ -60,7 +61,6 @@ class BinaryClassificationDataset(Dataset):
             sample = self.transform(sample)
 
         # Return the samples and labels as torch tensors
-        # TODO maybe this if data is not rightly typed: return torch.tensor(sample, dtype=torch.float32), torch.tensor(label, dtype=torch.int64)
         return torch.tensor(sample), torch.tensor(label)
 
 

@@ -10,4 +10,4 @@
 #SBATCH --time=01:00:00
 
 source /s/bach/b/class/cs535/cs535b/ddos-classification/venv/bin/activate
-srun python3 /s/bach/b/class/cs535/cs535b/ddos-classification/ddos_binaryclassifier.py
+srun python3 /s/bach/b/class/cs535/cs535b/ddos-classification/ddos_binary_classifier.py
