@@ -65,7 +65,7 @@ class BinaryClassificationDataset(Dataset):
 class BinaryClassifier(nn.Module):
     def __init__(self):
         super(BinaryClassifier, self).__init__()
-        self.layer1 = nn.Linear(80, 128)  # Input layer to first hidden layer
+        self.layer1 = nn.Linear(79, 128)  # Input layer to first hidden layer
         self.relu = nn.ReLU()             # Activation function
         self.layer2 = nn.Linear(128, 64)  # Second hidden layer
         self.output_layer = nn.Linear(64, 1)  # Output layer
