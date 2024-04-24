@@ -62,31 +62,20 @@ class BinaryClassificationDataset(Dataset):
         return torch.tensor(sample), torch.tensor(label)
 
 
-class LSTMModel(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_layers, output_dim=1):
-        # Initialize the model
-        super(LSTMModel, self).__init__()
-
-        # Set the model parameters
-        self.hidden_dim = hidden_dim
-        self.num_layers = num_layers
-
-        # Define the LSTM layer
-        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_dim, output_dim)
-        self.sigmoid = nn.Sigmoid()
+class BinaryClassifier(nn.Module):
+    def __init__(self):
+        super(BinaryClassifier, self).__init__()
+        self.layer1 = nn.Linear(80, 128)  # Input layer to first hidden layer
+        self.relu = nn.ReLU()             # Activation function
+        self.layer2 = nn.Linear(128, 64)  # Second hidden layer
+        self.output_layer = nn.Linear(64, 1)  # Output layer
+        self.sigmoid = nn.Sigmoid()       # Sigmoid activation for binary output
 
     def forward(self, x):
-        # Initialize the hidden state
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
-
-        # Initialize the cell state
-        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
-
-        # Forward pass on this sample
-        out, _ = self.lstm(x, (h0, c0))
-        out = self.fc(out[:, -1, :])
-        return self.sigmoid(out)
+        x = self.relu(self.layer1(x))
+        x = self.relu(self.layer2(x))
+        x = self.sigmoid(self.output_layer(x))
+        return x
 
 
 def train(model, train_loader, criterion, optimizer):
@@ -203,12 +192,7 @@ def main():
     )
 
     # Setup model, loss function, and optimizer
-    hidden_dim = 50
-    num_layers = 2
-    num_features = train_dataset[0][0].shape[0]
-    model = LSTMModel(
-        input_dim=num_features, hidden_dim=hidden_dim, num_layers=num_layers
-    )
+    model = BinaryClassifier()
     model.to(device)
     criterion = nn.BCELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
