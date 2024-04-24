@@ -7,6 +7,10 @@ from tqdm import tqdm
 
 # TODO Parallelize me!
 
+BATCH_SIZE = 1000
+EPOCH_COUNT = 5
+LEARNING_RATE = 0.001
+
 device = (
     "cuda"
     if torch.cuda.is_available()
@@ -185,20 +189,20 @@ def main():
 
     # Create DataLoaders
     train_loader = DataLoader(
-        train_dataset, batch_size=1000, shuffle=True, num_workers=4
+        train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4
     )
     test_loader = DataLoader(
-        test_dataset, batch_size=1000, shuffle=False, num_workers=4
+        test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4
     )
 
     # Setup model, loss function, and optimizer
     model = BinaryClassifier()
     model.to(device)
     criterion = nn.BCELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     # Loop over each epoch
-    for epoch in range(5):
+    for epoch in range(EPOCH_COUNT):
         # Train the model and print loss and accuracy
         train_loss, train_accuracy = train(model, train_loader, criterion, optimizer)
         print(
