@@ -5,11 +5,13 @@ from sklearn.preprocessing import MinMaxScaler
 import torch.nn as nn
 from tqdm import tqdm
 
+
 device = (
     "cuda"
     if torch.cuda.is_available()
     else ("mps" if torch.backends.mps.is_available() else "cpu")
 )
+
 
 class MinMaxTransform:
     def __init__(self):
@@ -120,9 +122,6 @@ def test(model, test_loader, criterion):
     correct = 0
     total = 0
 
-    data.to(device)
-    labels.to(device)
-
     # Disable gradient updates, loop over test loader
     with torch.no_grad():
         for data, labels in tqdm(test_loader):
@@ -195,7 +194,7 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
     # Loop over each epoch
-    for epoch in range(10):
+    for epoch in range(5):
         # Train the model and print loss and accuracy
         train_loss, train_accuracy = train(model, train_loader, criterion, optimizer)
         print(
@@ -211,4 +210,5 @@ def main():
 
 # Run main function
 if __name__ == "__main__":
+    print("Starting training...")
     main()
