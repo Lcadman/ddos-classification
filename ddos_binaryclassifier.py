@@ -88,10 +88,7 @@ def train(model, train_loader, criterion, optimizer):
     # Loop over train loader
     for data, labels in tqdm(train_loader):
         # Ensure labels are in the correct shape
-        data, labels = data.float(), labels.float().unsqueeze(1)
-
-        data.to(device)
-        labels.to(device)
+        data, labels = data.float().to(device), labels.float().unsqueeze(1).to(device)
 
         # Reset gradients each batch
         optimizer.zero_grad()
@@ -130,7 +127,7 @@ def test(model, test_loader, criterion):
     with torch.no_grad():
         for data, labels in tqdm(test_loader):
             # Ensure labels are in the correct shape
-            data, labels = data.float(), labels.float().unsqueeze(1)
+            data, labels = data.float().to(device), labels.float().unsqueeze(1).to(device)
 
             # Forward pass on batch
             outputs = model(data)
