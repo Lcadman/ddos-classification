@@ -43,9 +43,9 @@ def load_and_preprocess(csv_files, chunksize=100000):
             chunk.drop(' Timestamp', axis=1, inplace=True)
             chunk.drop('SimillarHTTP', axis=1, inplace=True)
 
-            # Separate BENIGN and attack data, leave in string form we will handle in Pytorch
+            # Separate BENIGN and attack data, leave in string form we will handle in Pytorch, drop WebDDoS
             benign_chunk = chunk[chunk[" Label"] == "BENIGN"]
-            attack_chunk = chunk[chunk[" Label"] != "BENIGN"]
+            attack_chunk = chunk[chunk[" Label"] != "BENIGN" and chunk[" Label"] != "WebDDoS"]
 
             # Sample attack data if necessary
             if len(attack_chunk) > 1:
