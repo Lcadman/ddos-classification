@@ -13,7 +13,7 @@ LEARNING_RATE = 0.001
 device = (
     "cuda"
     if torch.cuda.is_available()
-    else ("mps" if torch.backends.mps.is_available() else "cpu")
+    else "cpu"
 )
 
 
