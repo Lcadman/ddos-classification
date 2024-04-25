@@ -213,7 +213,7 @@ def main():
 
     # Setup model, loss function, and optimizer
     model = BinaryClassifier().to(device)
-    model = ddp(model, device_ids=[setup.rank])
+    model = ddp(model).to(device)
     criterion = nn.BCELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
