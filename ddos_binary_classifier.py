@@ -66,7 +66,7 @@ class BinaryClassificationDataset(Dataset):
 
         # Grab last column as label
         sample = self.data.iloc[idx, :-1].values.astype("float")
-        label = self.data.iloc[idx, -1].astype("int")
+        label = self.data.iloc[idx, -1]
 
         # Transform the samples if present
         if self.transform:
