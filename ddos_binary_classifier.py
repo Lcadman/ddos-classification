@@ -165,7 +165,6 @@ def main():
 
     # Set device
     print(f'rank {setup.rank}: device is {device}')
-    dist.init_process_group(backend='nccl', init_method='env://')
 
     # Define file paths
     train_attack = (
