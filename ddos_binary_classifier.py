@@ -4,6 +4,10 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import torch.nn as nn
 from tqdm import tqdm
+from SetupInfo import SlurmSetup
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as ddp
+from torch.utils.data.distributed import DistributedSampler as ds
 
 # TODO Parallelize me!
 
@@ -153,6 +157,20 @@ def test(model, test_loader, criterion):
 
 
 def main():
+
+    # Setup Slurm
+    setup = SlurmSetup()
+    print(f'rank {setup.rank}: starting communication')
+    setup.establish_communication()
+    print(f'rank {setup.rank}: communication established')
+
+    # Set device
+    device = torch.device("cuda", setup.rank)
+    print(f'rank {setup.rank}: device is {device}')
+    dist.init_process_group(backend='nccl', init_method='env://')
+
+
+
     # Define file paths
     train_attack = (
         "/s/bach/b/class/cs535/cs535b/binaryclassificationdataset/train_attack.csv"
@@ -187,33 +205,41 @@ def main():
         test_attack, test_benign, transform=min_max_transform
     )
 
+    # Create sampler for distributed training
+    train_sampler = ds(train_dataset, num_replicas=setup.world_size, rank=setup.rank)
+
     # Create DataLoaders
     train_loader = DataLoader(
-        train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4
+        train_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4, sampler=train_sampler,
     )
     test_loader = DataLoader(
         test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4
     )
 
     # Setup model, loss function, and optimizer
-    model = BinaryClassifier()
-    model.to(device)
+    model = BinaryClassifier().to(device)
+    model = ddp(model, device_ids=[setup.rank])
     criterion = nn.BCELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     # Loop over each epoch
     for epoch in range(EPOCH_COUNT):
+        # Set the epoch for the sampler
+        train_sampler.set_epoch(epoch)
+
         # Train the model and print loss and accuracy
         train_loss, train_accuracy = train(model, train_loader, criterion, optimizer)
         print(
             f"Epoch {epoch+1}, Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.2f}%"
         )
 
-        # Test the model and print loss and accuracy
-        test_loss, test_accuracy = test(model, test_loader, criterion)
-        print(
-            f"Epoch {epoch+1}, Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%"
-        )
+        # Test on model on main node
+        if setup.is_main_process():
+            # Test the model and print loss and accuracy
+            test_loss, test_accuracy = test(model, test_loader, criterion)
+            print(
+                f"Epoch {epoch+1}, Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%"
+            )
 
 
 # Run main function
