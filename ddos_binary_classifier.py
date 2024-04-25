@@ -219,13 +219,14 @@ def main():
 
     # Loop over each epoch
     for epoch in range(EPOCH_COUNT):
+
         # Set the epoch for the sampler
         train_sampler.set_epoch(epoch)
 
         # Train the model and print loss and accuracy
         train_loss, train_accuracy = train(model, train_loader, criterion, optimizer)
         print(
-            f"Epoch {epoch+1}, Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.2f}%"
+            f"rank {setup.rank}: Epoch {epoch+1}, Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.2f}%"
         )
 
         # Test the model on main node
@@ -233,9 +234,12 @@ def main():
             # Test the model and print loss and accuracy
             test_loss, test_accuracy = test(model, test_loader, criterion)
             print(
-                f"Epoch {epoch+1}, Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%"
+                f"rank {setup.rank}: Epoch {epoch+1}, Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%"
             )
 
+    # Save the model
+    if setup.is_main_process():
+        torch.save(model.state_dict(), f'model_epoch_{epoch+1}')
 
 # Run main function
 if __name__ == "__main__":
