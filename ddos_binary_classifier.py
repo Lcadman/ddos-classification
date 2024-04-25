@@ -3,7 +3,6 @@ from torch.utils.data import Dataset, DataLoader
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import torch.nn as nn
-from tqdm import tqdm
 from SetupInfo import SlurmSetup
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as ddp
@@ -100,7 +99,7 @@ def train(model, train_loader, criterion, optimizer):
     total = 0
 
     # Loop over train loader
-    for data, labels in tqdm(train_loader):
+    for data, labels in train_loader:
         # Ensure labels are in the correct shape
         data, labels = data.float().to(device), labels.float().unsqueeze(1).to(device)
 
@@ -136,7 +135,7 @@ def test(model, test_loader, criterion):
 
     # Disable gradient updates, loop over test loader
     with torch.no_grad():
-        for data, labels in tqdm(test_loader):
+        for data, labels in test_loader:
             # Ensure labels are in the correct shape
             data, labels = data.float().to(device), labels.float().unsqueeze(1).to(device)
 
