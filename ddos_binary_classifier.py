@@ -8,12 +8,12 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as ddp
 from torch.utils.data.distributed import DistributedSampler as ds
 
-
+# Define constants
 BATCH_SIZE = 1000
 EPOCH_COUNT = 5
 LEARNING_RATE = 0.001
 
-
+# Determine device
 device = (
     "cuda"
     if torch.cuda.is_available()
@@ -38,7 +38,7 @@ class MinMaxTransform:
         return transformed_sample.flatten()
 
 
-class BinaryClassificationDataset(Dataset):
+class mlpDataset(Dataset):
     def __init__(self, attack_file, benign_file, transform=None):
         # Load data from files
         self.attack_data = pd.read_csv(attack_file)
@@ -75,9 +75,9 @@ class BinaryClassificationDataset(Dataset):
         return torch.tensor(sample), torch.tensor(label)
 
 
-class BinaryClassifier(nn.Module):
+class mlp(nn.Module):
     def __init__(self): # TODO clean me up and understand me, also maybe try an additional model type for comparison
-        super(BinaryClassifier, self).__init__()
+        super(mlp, self).__init__()
         self.layer1 = nn.Linear(79, 128)  # Input layer to first hidden layer
         self.relu = nn.ReLU()             # Activation function
         self.layer2 = nn.Linear(128, 64)  # Second hidden layer
@@ -192,10 +192,10 @@ def main():
     del temp_attack_data, temp_benign_data, temp_train_data
 
     # Create dataset instances
-    train_dataset = BinaryClassificationDataset(
+    train_dataset = mlpDataset(
         train_attack, train_benign, transform=min_max_transform
     )
-    test_dataset = BinaryClassificationDataset(
+    test_dataset = mlpDataset(
         test_attack, test_benign, transform=min_max_transform
     )
 
@@ -211,7 +211,7 @@ def main():
     )
 
     # Setup model, loss function, and optimizer
-    model = BinaryClassifier().to(device)
+    model = mlp().to(device)
     model = ddp(model).to(device)
     criterion = nn.BCELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
