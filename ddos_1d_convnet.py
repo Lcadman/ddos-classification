@@ -74,13 +74,6 @@ class convNetDataset(Dataset):
         # Return the samples and labels as torch tensors
         return torch.tensor(sample), torch.tensor(label)
 
-
-def get_conv_output_shape(self, input_shape):
-    sample = torch.rand(1, *input_shape)
-    sample = self.pool(self.relu(self.conv1(sample)))
-    sample = self.relu(self.conv2(sample))
-    return sample.numel()
-
 class convNet(nn.Module):
     def __init__(self, input_features=80):
         super(convNet, self).__init__()
@@ -88,8 +81,7 @@ class convNet(nn.Module):
         self.relu = nn.ReLU() # activation function
         self.pool = nn.MaxPool1d(2) # pool size
         self.conv2 = nn.Conv1d(40, 80, kernel_size=3, padding=1) # number of filters in the second layer
-        output_size = self.get_conv_output_shape((1, input_features))
-        self.fc1 = nn.Linear(output_size, 100) # number of neurons in first layer
+        self.fc1 = nn.Linear(64 * (79 // 2), 100) # number of neurons in first layer
         self.fc2 = nn.Linear(100, 1) # number of neurons in the second layer
 
     def forward(self, x):
@@ -99,7 +91,6 @@ class convNet(nn.Module):
         x = self.relu(self.fc1(x))
         x = self.fc2(x)
         return x
-
 
 def train(model, train_loader, criterion, optimizer):
     # Set the model to training mode, save variables for tracking metrics
