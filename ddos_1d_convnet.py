@@ -38,7 +38,7 @@ class MinMaxTransform:
         return transformed_sample.flatten()
 
 
-class BinaryClassificationDataset(Dataset):
+class convNetDataset(Dataset):
     def __init__(self, attack_file, benign_file, transform=None):
         # Load data from files
         self.attack_data = pd.read_csv(attack_file)
@@ -75,14 +75,21 @@ class BinaryClassificationDataset(Dataset):
         return torch.tensor(sample), torch.tensor(label)
 
 
+def get_conv_output_shape(self, input_shape):
+    sample = torch.rand(1, *input_shape)
+    sample = self.pool(self.relu(self.conv1(sample)))
+    sample = self.relu(self.conv2(sample))
+    return sample.numel()
+
 class convNet(nn.Module):
-    def __init__(self):
+    def __init__(self, input_features=80):
         super(convNet, self).__init__()
         self.conv1 = nn.Conv1d(1, 40, kernel_size=3, padding=1) # number of filters in the first layer
         self.relu = nn.ReLU() # activation function
         self.pool = nn.MaxPool1d(2) # pool size
         self.conv2 = nn.Conv1d(40, 80, kernel_size=3, padding=1) # number of filters in the second layer
-        self.fc1 = nn.Linear(64 * (79 // 2), 100) # number of neurons in first layer
+        output_size = self.get_conv_output_shape((1, input_features))
+        self.fc1 = nn.Linear(output_size, 100) # number of neurons in first layer
         self.fc2 = nn.Linear(100, 1) # number of neurons in the second layer
 
     def forward(self, x):
@@ -195,10 +202,10 @@ def main():
     del temp_attack_data, temp_benign_data, temp_train_data
 
     # Create dataset instances
-    train_dataset = BinaryClassificationDataset(
+    train_dataset = convNetDataset(
         train_attack, train_benign, transform=min_max_transform
     )
-    test_dataset = BinaryClassificationDataset(
+    test_dataset = convNetDataset(
         test_attack, test_benign, transform=min_max_transform
     )
 
