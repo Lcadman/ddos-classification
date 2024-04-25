@@ -9,11 +9,11 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as ddp
 from torch.utils.data.distributed import DistributedSampler as ds
 
-# TODO Parallelize me!
 
 BATCH_SIZE = 1000
 EPOCH_COUNT = 5
 LEARNING_RATE = 0.001
+
 
 device = (
     "cuda"
@@ -157,7 +157,6 @@ def test(model, test_loader, criterion):
 
 
 def main():
-
     # Setup Slurm
     setup = SlurmSetup()
     print(f'rank {setup.rank}: starting communication')
@@ -168,8 +167,6 @@ def main():
     device = torch.device("cuda", setup.rank)
     print(f'rank {setup.rank}: device is {device}')
     dist.init_process_group(backend='nccl', init_method='env://')
-
-
 
     # Define file paths
     train_attack = (
@@ -233,7 +230,7 @@ def main():
             f"Epoch {epoch+1}, Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.2f}%"
         )
 
-        # Test on model on main node
+        # Test the model on main node
         if setup.is_main_process():
             # Test the model and print loss and accuracy
             test_loss, test_accuracy = test(model, test_loader, criterion)
