@@ -167,5 +167,5 @@ def main():
 
 # Run main function
 if __name__ == "__main__":
-    print("Starting training...")
+    print("Starting sensitivity analysis...")
     main()
