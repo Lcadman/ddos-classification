@@ -46,8 +46,8 @@ class BinaryClassificationDataset(Dataset):
             self.data = self.data[self.data[" Label"] == sample_type]
             self.data.iloc[:, -1] = 1
 
-            # Store transform
-            self.transform = transform
+        # Store transform
+        self.transform = transform
 
     def __len__(self):
         # Return the length of the data
