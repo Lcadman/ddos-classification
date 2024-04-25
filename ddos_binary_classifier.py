@@ -164,7 +164,6 @@ def main():
     print(f'rank {setup.rank}: communication established')
 
     # Set device
-    device = torch.device("cuda", setup.rank)
     print(f'rank {setup.rank}: device is {device}')
     dist.init_process_group(backend='nccl', init_method='env://')
 
