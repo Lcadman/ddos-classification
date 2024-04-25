@@ -7,6 +7,8 @@ from SetupInfo import SlurmSetup
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as ddp
 from torch.utils.data.distributed import DistributedSampler as ds
+import os
+os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
 # Define constants
 BATCH_SIZE = 1000
@@ -59,20 +61,23 @@ class convNetDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
-        # Convert to list just incase
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        # Grab last column as label and reshape for 1d convNet
-        sample = self.data.iloc[idx, :-1].values.astype("float").reshape(-1, 1)
+        features = self.data.iloc[idx, :-1].values.astype("float")
         label = self.data.iloc[idx, -1]
 
-        # Transform the samples if present
         if self.transform:
-            sample = self.transform(sample)
+            features = self.transform(features)
 
-        # Return the samples and labels as torch tensors
-        return torch.tensor(sample), torch.tensor(label)
+        features = features.reshape(1, -1)  # Adding channel dimension
+
+        features_tensor = torch.tensor(features, dtype=torch.float32)
+        label_tensor = torch.tensor(label, dtype=torch.float32)
+
+        print("Feature tensor shape:", features_tensor.shape)  # Debug print
+
+        return features_tensor, label_tensor
 
 class convNet(nn.Module):
     def __init__(self, input_features=80):
@@ -81,15 +86,20 @@ class convNet(nn.Module):
         self.relu = nn.ReLU() # activation function
         self.pool = nn.MaxPool1d(2) # pool size
         self.conv2 = nn.Conv1d(40, 80, kernel_size=3, padding=1) # number of filters in the second layer
-        self.fc1 = nn.Linear(64 * (79 // 2), 100) # number of neurons in first layer
+        self.fc1 = nn.Linear(3120, 100) # number of neurons in first layer
         self.fc2 = nn.Linear(100, 1) # number of neurons in the second layer
 
     def forward(self, x):
         x = self.pool(self.relu(self.conv1(x)))
         x = self.relu(self.conv2(x))
         x = torch.flatten(x, 1)
+        num_features = x.shape[1]  # Dynamically calculate the number of features
+        if not hasattr(self, 'fc1'):
+            # Initialize the fc1 layer dynamically based on the computed size
+            self.fc1 = nn.Linear(num_features, 100).to(x.device)
+        print("Shape before fc1:", x.shape)  # Debugging line to check the shape
         x = self.relu(self.fc1(x))
-        x = self.fc2(x)
+        x = torch.sigmoid(self.fc2(x))
         return x
 
 def train(model, train_loader, criterion, optimizer):
@@ -101,6 +111,7 @@ def train(model, train_loader, criterion, optimizer):
 
     # Loop over train loader
     for data, labels in train_loader:
+        print("Data shape:", data.shape)
         # Ensure labels are in the correct shape
         data, labels = data.float().to(device), labels.float().unsqueeze(1).to(device)
 
@@ -109,7 +120,19 @@ def train(model, train_loader, criterion, optimizer):
 
         # Forward pass on batch
         outputs = model(data)
+        print("Outputs shape:", outputs.shape)
+        print("Labels shape:", labels.shape)
         loss = criterion(outputs, labels)
+
+        outputs = outputs.type(torch.float32)  # Ensure outputs are float
+        labels = labels.type(torch.float32)    # Ensure labels are float
+
+        print("Loss:", loss.item())
+        if torch.isnan(loss) or torch.isinf(loss):
+            print("Invalid loss detected")
+
+        print("Outputs:", outputs)
+        print("Labels:", labels)
 
         # Backward pass and step optimizer
         loss.backward()
