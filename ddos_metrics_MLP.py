@@ -3,7 +3,7 @@ from torch.utils.data import Dataset, DataLoader
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import torch.nn as nn
-import sys
+from torchmetrics import Precision, Recall, F1Score
 
 # Define constants
 BATCH_SIZE = 1000
@@ -30,16 +30,17 @@ class MinMaxTransform:
 
 
 class mlpDataset(Dataset):
-    def __init__(self, attack_file, benign_file, transform=None, sample_type=None):
-        # If BENIGN was passed, just load that set
-        if sample_type == "BENIGN":
-            self.data = pd.read_csv(benign_file)
-            self.data.iloc[:, -1] = 0
-        else:
-            self.data = pd.read_csv(attack_file)
-            # If anything else was passed, only extract samples of that type
-            self.data = self.data[self.data[" Label"] == sample_type]
-            self.data.iloc[:, -1] = 1
+    def __init__(self, attack_file, benign_file, transform=None):
+        # Load data from files
+        self.attack_data = pd.read_csv(attack_file)
+        self.benign_data = pd.read_csv(benign_file)
+
+        # For binary classification, modify the labels to be integers
+        self.benign_data.iloc[:, -1] = 0
+        self.attack_data.iloc[:, -1] = 1
+
+        # Combine the datasets
+        self.data = pd.concat([self.attack_data, self.benign_data], ignore_index=True)
 
         # Store transform
         self.transform = transform
@@ -89,6 +90,11 @@ def test(model, test_loader, criterion):
     correct = 0
     total = 0
 
+    # Init metrics
+    precision = Precision().to(device)
+    recall = Recall().to(device)
+    f1 = F1Score().to(device)
+
     # Disable gradient updates, loop over test loader
     with torch.no_grad():
         for data, labels in test_loader:
@@ -105,14 +111,24 @@ def test(model, test_loader, criterion):
             running_loss += loss.item()
             predicted = outputs.round()
 
+            # Update metrics
+            precision.update(predicted, labels.int())
+            recall.update(predicted, labels.int())
+            f1.update(predicted, labels.int())
+
             # Calc total and predicted
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
+    # Calc metrics
+    precision_val = precision.compute().item()
+    recall_val = recall.compute().item()
+    f1_val = f1.compute().item()
+
     # Return the average loss and accuracy, in addition to total and correct
     avg_loss = running_loss / len(test_loader)
     accuracy = 100 * correct / total
-    return avg_loss, accuracy, correct, total
+    return avg_loss, accuracy, correct, total, precision_val, recall_val, f1_val
 
 
 def main():
@@ -144,7 +160,7 @@ def main():
 
     # Create dataset instance
     test_dataset = mlpDataset(
-        test_attack, test_benign, transform=min_max_transform, sample_type=sys.argv[1]
+        test_attack, test_benign, transform=min_max_transform
     )
 
     # Create DataLoader
@@ -168,12 +184,13 @@ def main():
     criterion = nn.BCELoss()
 
     # Test the model and print loss and accuracy, as well as correct guesses, total guesses, and the tested sample type
-    test_loss, test_accuracy, test_correct, test_total = test(
+    test_loss, test_accuracy, test_correct, test_total, precision, recall, f1 = test(
         model, sensitivity_loader, criterion
     )
     print(
-        f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%, Test Correct: {test_correct}, Test Total: {test_total}, Sample type: {sys.argv[1]}"
+        f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%, Test Correct: {test_correct}, Test Total: {test_total}"
     )
+    print(f"Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
 
 
 # Run main function

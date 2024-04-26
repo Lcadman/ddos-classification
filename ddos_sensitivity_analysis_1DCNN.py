@@ -4,9 +4,6 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import torch.nn as nn
 import sys
-import torchmetrics
-from torchmetrics import Precision, Recall, F1Score
-
 
 # Define constants
 BATCH_SIZE = 1000
@@ -104,11 +101,6 @@ def test(model, test_loader, criterion):
     correct = 0
     total = 0
 
-    # Init metrics
-    precision = Precision().to(device)
-    recall = Recall().to(device)
-    f1 = F1Score().to(device)
-
     # Disable gradient updates, loop over test loader
     with torch.no_grad():
         for data, labels in test_loader:
@@ -125,24 +117,14 @@ def test(model, test_loader, criterion):
             running_loss += loss.item()
             predicted = outputs.round()
 
-            # Update metrics
-            precision.update(predicted, labels.int())
-            recall.update(predicted, labels.int())
-            f1.update(predicted, labels.int())
-
             # Calc total and predicted
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-    # Calc metrics
-    precision_val = precision.compute().item()
-    recall_val = recall.compute().item()
-    f1_val = f1.compute().item()
-
     # Return the average loss and accuracy, in addition to total and correct
     avg_loss = running_loss / len(test_loader)
     accuracy = 100 * correct / total
-    return avg_loss, accuracy, correct, total, precision_val, recall_val, f1_val
+    return avg_loss, accuracy, correct, total
 
 
 def main():
@@ -198,13 +180,12 @@ def main():
     criterion = nn.BCELoss()
 
     # Test the model and print loss and accuracy, as well as correct guesses, total guesses, and the tested sample type
-    test_loss, test_accuracy, test_correct, test_total, precision, recall, f1 = test(
+    test_loss, test_accuracy, test_correct, test_total = test(
         model, sensitivity_loader, criterion
     )
     print(
         f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%, Test Correct: {test_correct}, Test Total: {test_total}, Sample type: {sys.argv[1]}"
     )
-    print(f"Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
 
 
 # Run main function

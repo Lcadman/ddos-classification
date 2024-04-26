@@ -3,7 +3,7 @@ from torch.utils.data import Dataset, DataLoader
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import torch.nn as nn
-import sys
+from torchmetrics import Precision, Recall, F1Score
 
 # Define constants
 BATCH_SIZE = 1000
@@ -29,17 +29,18 @@ class MinMaxTransform:
         return transformed_sample.flatten()
 
 
-class mlpDataset(Dataset):
-    def __init__(self, attack_file, benign_file, transform=None, sample_type=None):
-        # If BENIGN was passed, just load that set
-        if sample_type == "BENIGN":
-            self.data = pd.read_csv(benign_file)
-            self.data.iloc[:, -1] = 0
-        else:
-            self.data = pd.read_csv(attack_file)
-            # If anything else was passed, only extract samples of that type
-            self.data = self.data[self.data[" Label"] == sample_type]
-            self.data.iloc[:, -1] = 1
+class convNetDataset(Dataset):
+    def __init__(self, attack_file, benign_file, transform=None):
+        # Load data from files
+        self.attack_data = pd.read_csv(attack_file)
+        self.benign_data = pd.read_csv(benign_file)
+
+        # # For binary classification, modify the labels to be integers
+        self.benign_data.iloc[:, -1] = 0
+        self.attack_data.iloc[:, -1] = 1
+
+        # Combine the datasets
+        self.data = pd.concat([self.attack_data, self.benign_data], ignore_index=True)
 
         # Store transform
         self.transform = transform
@@ -53,32 +54,44 @@ class mlpDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        # Grab last column as label
-        sample = self.data.iloc[idx, :-1].values.astype("float")
+        # Get the features and label
+        features = self.data.iloc[idx, :-1].values.astype("float")
         label = self.data.iloc[idx, -1]
 
-        # Transform the samples if present
+        # Apply transform if available
         if self.transform:
-            sample = self.transform(sample)
+            features = self.transform(features)
 
-        # Return the samples and labels as torch tensors
-        return torch.tensor(sample), torch.tensor(label)
+        # Reshape to add channel dimension
+        features = features.reshape(1, -1)
+
+        # Convert to tensors, ensure float 32 type
+        features_tensor = torch.tensor(features, dtype=torch.float32)
+        label_tensor = torch.tensor(label, dtype=torch.float32)
+
+        return features_tensor, label_tensor
 
 
-class mlp(nn.Module):
-    def __init__(self):
-        super(mlp, self).__init__()
-        # 79 input features
-        self.layer1 = nn.Linear(79, 128)
+class convNet(nn.Module):
+    def __init__(self, input_features=80):
+        super(convNet, self).__init__()
+        self.conv1 = nn.Conv1d(1, 40, kernel_size=3, padding=1)
         self.relu = nn.ReLU()
-        self.layer2 = nn.Linear(128, 64)
-        self.output_layer = nn.Linear(64, 1)
-        self.sigmoid = nn.Sigmoid()
+        self.pool = nn.MaxPool1d(2)
+        self.conv2 = nn.Conv1d(40, 80, kernel_size=3, padding=1)
+        self.fc1 = nn.Linear(3120, 100)
+        self.fc2 = nn.Linear(100, 1)
 
     def forward(self, x):
-        x = self.relu(self.layer1(x))
-        x = self.relu(self.layer2(x))
-        x = self.sigmoid(self.output_layer(x))
+        x = self.pool(self.relu(self.conv1(x)))
+        x = self.relu(self.conv2(x))
+        x = torch.flatten(x, 1)
+        num_features = x.shape[1]
+        if not hasattr(self, "fc1"):
+            # Initialize the fc1 layer dynamically
+            self.fc1 = nn.Linear(num_features, 100).to(x.device)
+        x = self.relu(self.fc1(x))
+        x = torch.sigmoid(self.fc2(x))
         return x
 
 
@@ -88,6 +101,11 @@ def test(model, test_loader, criterion):
     running_loss = 0.0
     correct = 0
     total = 0
+
+    # Init metrics
+    precision = Precision().to(device)
+    recall = Recall().to(device)
+    f1 = F1Score().to(device)
 
     # Disable gradient updates, loop over test loader
     with torch.no_grad():
@@ -105,14 +123,24 @@ def test(model, test_loader, criterion):
             running_loss += loss.item()
             predicted = outputs.round()
 
+            # Update metrics
+            precision.update(predicted, labels.int())
+            recall.update(predicted, labels.int())
+            f1.update(predicted, labels.int())
+
             # Calc total and predicted
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
+    # Calc metrics
+    precision_val = precision.compute().item()
+    recall_val = recall.compute().item()
+    f1_val = f1.compute().item()
+
     # Return the average loss and accuracy, in addition to total and correct
     avg_loss = running_loss / len(test_loader)
     accuracy = 100 * correct / total
-    return avg_loss, accuracy, correct, total
+    return avg_loss, accuracy, correct, total, precision_val, recall_val, f1_val
 
 
 def main():
@@ -143,8 +171,8 @@ def main():
     del temp_attack_data, temp_benign_data, temp_train_data
 
     # Create dataset instance
-    test_dataset = mlpDataset(
-        test_attack, test_benign, transform=min_max_transform, sample_type=sys.argv[1]
+    test_dataset = convNetDataset(
+        test_attack, test_benign, transform=min_max_transform
     )
 
     # Create DataLoader
@@ -156,9 +184,9 @@ def main():
     )
 
     # Setup model, loss function, and optimizer, load model
-    model = mlp().to(device)
+    model = convNet().to(device)
     state_dict = torch.load(
-        "/s/bach/b/class/cs535/cs535b/ddos-classification/MLP_model",
+        "/s/bach/b/class/cs535/cs535b/ddos-classification/1DCNN_model",
         map_location=torch.device(device),
     )
     new_state_dict = {
@@ -168,15 +196,19 @@ def main():
     criterion = nn.BCELoss()
 
     # Test the model and print loss and accuracy, as well as correct guesses, total guesses, and the tested sample type
-    test_loss, test_accuracy, test_correct, test_total = test(
+    test_loss, test_accuracy, test_correct, test_total, precision, recall, f1 = test(
         model, sensitivity_loader, criterion
     )
     print(
-        f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%, Test Correct: {test_correct}, Test Total: {test_total}, Sample type: {sys.argv[1]}"
+        f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%, Test Correct: {test_correct}, Test Total: {test_total}"
     )
+    print(f"Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
 
 
 # Run main function
 if __name__ == "__main__":
     print("Starting sensitivity analysis...")
     main()
+
+
+# FIX!
