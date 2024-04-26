@@ -15,9 +15,7 @@ LEARNING_RATE = 0.001
 
 # Determine device
 device = (
-    "cuda"
-    if torch.cuda.is_available()
-    else ("mps" if torch.backends.mps.is_available() else "cpu")
+    "cuda" if torch.cuda.is_available() else "cpu"
 )
 
 
@@ -238,7 +236,7 @@ def main():
 
     # Save the model
     if setup.is_main_process():
-        torch.save(model.state_dict(), f'model_epoch_{epoch+1}')
+        torch.save(model.state_dict(), f'MLP_model')
 
 # Run main function
 if __name__ == "__main__":
