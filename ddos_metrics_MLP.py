@@ -195,5 +195,5 @@ def main():
 
 # Run main function
 if __name__ == "__main__":
-    print("Starting sensitivity analysis...")
+    print("Starting metrics analysis...")
     main()
