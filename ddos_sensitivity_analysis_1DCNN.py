@@ -164,7 +164,7 @@ def main():
 
     # Setup model, loss function, and optimizer, load model
     model = convNet().to(device)
-    state_dict = torch.load('/s/bach/b/class/cs535/cs535b/ddos-classification/1DCNN_model', map_location=torch.device("cpu"))
+    state_dict = torch.load('/s/bach/b/class/cs535/cs535b/ddos-classification/1DCNN_model', map_location=torch.device(device))
     new_state_dict = {key.replace('module.', ''): value for key, value in state_dict.items()}
     model.load_state_dict(new_state_dict)
     criterion = nn.BCELoss()
