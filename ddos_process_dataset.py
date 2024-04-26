@@ -58,7 +58,8 @@ def load_and_preprocess(csv_files, chunksize=100000):
 
             # Separate BENIGN and attack data, leave in string form we will handle in Pytorch, drop WebDDoS
             benign_chunk = chunk[chunk[" Label"] == "BENIGN"]
-            attack_chunk = chunk[chunk[" Label"] != "BENIGN" and chunk[" Label"] != "WebDDoS"]
+            attack_chunk = chunk[chunk[" Label"] != "BENIGN"]
+            attack_chunk = chunk[chunk[" Label"] != "WebDDoS"]
 
             # Handle for different label names that are of the same type
             attack_chunk[' Label'] = attack_chunk[' Label'].replace(label_corrections)
