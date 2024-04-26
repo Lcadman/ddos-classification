@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name="DDoS-Classification"
+#SBATCH --job-name="DDoS-Classification-MLP"
 #SBATCH --partition=kestrel-gpu
 #SBATCH --qos=gpu_short
 #SBATCH --nodes=1
@@ -10,4 +10,4 @@
 #SBATCH --time=01:00:00
 
 source /s/bach/b/class/cs535/cs535b/ddos-classification/venv/bin/activate
-srun python3 /s/bach/b/class/cs535/cs535b/ddos-classification/ddos_1d_convnet.py
+srun python3 /s/bach/b/class/cs535/cs535b/ddos-classification/ddos_binary_classifier_MLP.py

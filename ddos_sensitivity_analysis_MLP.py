@@ -5,15 +5,12 @@ from sklearn.preprocessing import MinMaxScaler
 import torch.nn as nn
 import sys
 
+# Define constants
 BATCH_SIZE = 1000
-EPOCH_COUNT = 5
-LEARNING_RATE = 0.001
 
-
+# Determine device
 device = (
-    "cuda"
-    if torch.cuda.is_available()
-    else "cpu"
+    "cuda" if torch.cuda.is_available() else "cpu"
 )
 
 
@@ -34,7 +31,7 @@ class MinMaxTransform:
         return transformed_sample.flatten()
 
 
-class BinaryClassificationDataset(Dataset):
+class mlpDataset(Dataset):
     def __init__(self, attack_file, benign_file, transform=None, sample_type=None):
         # If BENIGN was passed, just load that set
         if sample_type == "BENIGN":
@@ -70,14 +67,15 @@ class BinaryClassificationDataset(Dataset):
         return torch.tensor(sample), torch.tensor(label)
 
 
-class BinaryClassifier(nn.Module):
-    def __init__(self): # TODO clean me up and understand me, also maybe try an additional model type for comparison
-        super(BinaryClassifier, self).__init__()
-        self.layer1 = nn.Linear(79, 128)  # Input layer to first hidden layer
-        self.relu = nn.ReLU()             # Activation function
-        self.layer2 = nn.Linear(128, 64)  # Second hidden layer
-        self.output_layer = nn.Linear(64, 1)  # Output layer
-        self.sigmoid = nn.Sigmoid()       # Sigmoid activation for binary output
+class mlp(nn.Module):
+    def __init__(self):
+        super(mlp, self).__init__()
+        # 79 input features
+        self.layer1 = nn.Linear(79, 128)
+        self.relu = nn.ReLU()
+        self.layer2 = nn.Linear(128, 64)
+        self.output_layer = nn.Linear(64, 1)
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         x = self.relu(self.layer1(x))
@@ -109,10 +107,10 @@ def test(model, test_loader, criterion):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-    # Return the average loss and accuracy
+    # Return the average loss and accuracy, in addition to total and correct
     avg_loss = running_loss / len(test_loader)
     accuracy = 100 * correct / total
-    return avg_loss, accuracy
+    return avg_loss, accuracy, correct, total
 
 
 def main():
@@ -143,7 +141,7 @@ def main():
     del temp_attack_data, temp_benign_data, temp_train_data
 
     # Create dataset instance
-    test_dataset = BinaryClassificationDataset(
+    test_dataset = mlpDataset(
         test_attack, test_benign, transform=min_max_transform, sample_type=sys.argv[1]
     )
 
@@ -152,17 +150,17 @@ def main():
         test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4,
     )
 
-    # Setup model, loss function, and optimizer
-    model = BinaryClassifier().to(device)
+    # Setup model, loss function, and optimizer, load model
+    model = mlp().to(device)
     state_dict = torch.load('/s/bach/b/class/cs535/cs535b/ddos-classification/MLP_model', map_location=torch.device("cpu"))
     new_state_dict = {key.replace('module.', ''): value for key, value in state_dict.items()}
     model.load_state_dict(new_state_dict)
     criterion = nn.BCELoss()
 
-    # Test the model and print loss and accuracy
-    test_loss, test_accuracy = test(model, sensitivity_loader, criterion)
+    # Test the model and print loss and accuracy, as well as correct guesses, total guesses, and the tested sample type
+    test_loss, test_accuracy, test_correct, test_total = test(model, sensitivity_loader, criterion)
     print(
-        f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%, Sample type: {sys.argv[1]}"
+        f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%, Test Correct: {test_correct}, Test Total: {test_total}, Sample type: {sys.argv[1]}"
     )
 
 # Run main function

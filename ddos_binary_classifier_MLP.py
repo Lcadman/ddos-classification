@@ -238,7 +238,7 @@ def main():
 
     # Save the model
     if setup.is_main_process():
-        torch.save(model.state_dict(), f'binary_model')
+        torch.save(model.state_dict(), f'model_epoch_{epoch+1}')
 
 # Run main function
 if __name__ == "__main__":

@@ -4,6 +4,19 @@ import subprocess
 import random
 import numpy as np
 
+# Specify the label correction dictionary
+label_corrections = {
+    'DrDoS_DNS': 'DNS',
+    'DrDoS_LDAP': 'LDAP',
+    'DrDoS_MSSQL': 'MSSQL',
+    'DrDoS_NetBIOS': 'NetBIOS',
+    'DrDoS_NTP': 'NTP',
+    'DrDoS_SNMP': 'SNMP',
+    'DrDoS_SSDP': 'SSDP',
+    'DrDoS_UDP': 'UDP',
+    'UDP-lag': 'UDPLag'
+}
+
 
 def count_rows_unix(filename):
     # Function to count the rows on a file
@@ -46,6 +59,9 @@ def load_and_preprocess(csv_files, chunksize=100000):
             # Separate BENIGN and attack data, leave in string form we will handle in Pytorch, drop WebDDoS
             benign_chunk = chunk[chunk[" Label"] == "BENIGN"]
             attack_chunk = chunk[chunk[" Label"] != "BENIGN" and chunk[" Label"] != "WebDDoS"]
+
+            # Handle for different label names that are of the same type
+            attack_chunk[' Label'] = attack_chunk[' Label'].replace(label_corrections)
 
             # Sample attack data if necessary
             if len(attack_chunk) > 1:
