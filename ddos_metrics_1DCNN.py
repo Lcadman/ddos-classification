@@ -103,9 +103,9 @@ def test(model, test_loader, criterion):
     total = 0
 
     # Init metrics
-    precision = Precision().to(device)
-    recall = Recall().to(device)
-    f1 = F1Score().to(device)
+    precision = Precision(task="binary").to(device)
+    recall = Recall(task="binary").to(device)
+    f1 = F1Score(task="binary").to(device)
 
     # Disable gradient updates, loop over test loader
     with torch.no_grad():
