@@ -46,6 +46,9 @@ class mlpDataset(Dataset):
         self.benign_data.iloc[:, -1] = 0
         self.attack_data.iloc[:, -1] = 1
 
+        # Oversample the BENIGN data by a factor of ten
+        self.benign_data = pd.concat([self.benign_data] * 10, ignore_index=True)
+
         # Combine the datasets
         self.data = pd.concat([self.attack_data, self.benign_data], ignore_index=True)
 
