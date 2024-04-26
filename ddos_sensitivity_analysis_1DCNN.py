@@ -3,15 +3,10 @@ from torch.utils.data import Dataset, DataLoader
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import torch.nn as nn
-from SetupInfo import SlurmSetup
-import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as ddp
-from torch.utils.data.distributed import DistributedSampler as ds
+import sys
 
 # Define constants
 BATCH_SIZE = 1000
-EPOCH_COUNT = 5
-LEARNING_RATE = 0.001
 
 # Determine device
 device = (
@@ -37,17 +32,16 @@ class MinMaxTransform:
 
 
 class convNetDataset(Dataset):
-    def __init__(self, attack_file, benign_file, transform=None):
-        # Load data from files
-        self.attack_data = pd.read_csv(attack_file)
-        self.benign_data = pd.read_csv(benign_file)
-
-        # # For binary classification, modify the labels to be integers
-        self.benign_data.iloc[:, -1] = 0
-        self.attack_data.iloc[:, -1] = 1
-
-        # Combine the datasets
-        self.data = pd.concat([self.attack_data, self.benign_data], ignore_index=True)
+    def __init__(self, attack_file, benign_file, transform=None, sample_type=None):
+        # If BENIGN was passed, just load that set
+        if sample_type == "BENIGN":
+            self.data = pd.read_csv(benign_file)
+            self.data.iloc[:, -1] = 0
+        else:
+            self.data = pd.read_csv(attack_file)
+            # If anything else was passed, only extract samples of that type
+            self.data = self.data[self.data[" Label"] == sample_type]
+            self.data.iloc[:, -1] = 1
 
         # Store transform
         self.transform = transform
@@ -102,49 +96,6 @@ class convNet(nn.Module):
         return x
 
 
-def train(model, train_loader, criterion, optimizer):
-    # Set the model to training mode, save variables for tracking metrics
-    model.train()
-    running_loss = 0.0
-    correct = 0
-    total = 0
-
-    # Loop over train loader
-    for data, labels in train_loader:
-        # Ensure labels are in the correct shape
-        data, labels = data.float().to(device), labels.float().unsqueeze(1).to(device)
-
-        # Reset gradients each batch
-        optimizer.zero_grad()
-
-        # Forward pass on batch
-        outputs = model(data)
-        loss = criterion(outputs, labels)
-
-        # Ensure outputs and labels are floats
-        outputs = outputs.type(torch.float32)
-        labels = labels.type(torch.float32)
-
-        # Check for invalid loss
-        if torch.isnan(loss) or torch.isinf(loss):
-            print("Invalid loss detected")
-
-        # Backward pass and step optimizer
-        loss.backward()
-        optimizer.step()
-
-        # Calculate loss and accuracy, store correct predictions
-        running_loss += loss.item()
-        predicted = outputs.round()
-        total += labels.size(0)
-        correct += (predicted == labels).sum().item()
-
-    # Return the average loss and accuracy
-    avg_loss = running_loss / len(train_loader)
-    accuracy = 100 * correct / total
-    return avg_loss, accuracy
-
-
 def test(model, test_loader, criterion):
     # Set the model to evaluation mode, save variables for tracking metrics
     model.eval()
@@ -168,22 +119,13 @@ def test(model, test_loader, criterion):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-    # Return the average loss and accuracy
+    # Return the average loss and accuracy, in addition to total and correct
     avg_loss = running_loss / len(test_loader)
     accuracy = 100 * correct / total
-    return avg_loss, accuracy
+    return avg_loss, accuracy, correct, total
 
 
 def main():
-    # Setup Slurm
-    setup = SlurmSetup()
-    print(f'rank {setup.rank}: starting communication')
-    setup.establish_communication()
-    print(f'rank {setup.rank}: communication established')
-
-    # Set device
-    print(f'rank {setup.rank}: device is {device}')
-
     # Define file paths
     train_attack = (
         "/s/bach/b/class/cs535/cs535b/binaryclassificationdataset/train_attack.csv"
@@ -210,56 +152,30 @@ def main():
     # Delete the temp data used to find the transform
     del temp_attack_data, temp_benign_data, temp_train_data
 
-    # Create dataset instances
-    train_dataset = convNetDataset(
-        train_attack, train_benign, transform=min_max_transform
-    )
+    # Create dataset instance
     test_dataset = convNetDataset(
-        test_attack, test_benign, transform=min_max_transform
+        test_attack, test_benign, transform=min_max_transform, sample_type=sys.argv[1]
     )
 
-    # Create sampler for distributed training
-    train_sampler = ds(train_dataset, num_replicas=setup.world_size, rank=setup.rank)
-
-    # Create DataLoaders
-    train_loader = DataLoader(
-        train_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4, sampler=train_sampler,
-    )
-    test_loader = DataLoader(
-        test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4
+    # Create DataLoader
+    sensitivity_loader = DataLoader(
+        test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4,
     )
 
-    # Setup model, loss function, and optimizer
+    # Setup model, loss function, and optimizer, load model
     model = convNet().to(device)
-    model = ddp(model).to(device)
+    state_dict = torch.load('/s/bach/b/class/cs535/cs535b/ddos-classification/1DCNN_model', map_location=torch.device("cpu"))
+    new_state_dict = {key.replace('module.', ''): value for key, value in state_dict.items()}
+    model.load_state_dict(new_state_dict)
     criterion = nn.BCELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-    # Loop over each epoch
-    for epoch in range(EPOCH_COUNT):
-
-        # Set the epoch for the sampler
-        train_sampler.set_epoch(epoch)
-
-        # Train the model and print loss and accuracy
-        train_loss, train_accuracy = train(model, train_loader, criterion, optimizer)
-        print(
-            f"rank {setup.rank}: Epoch {epoch+1}, Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.2f}%"
-        )
-
-        # Test the model on main node
-        if setup.is_main_process():
-            # Test the model and print loss and accuracy
-            test_loss, test_accuracy = test(model, test_loader, criterion)
-            print(
-                f"rank {setup.rank}: Epoch {epoch+1}, Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%"
-            )
-
-    # Save the model
-    if setup.is_main_process():
-        torch.save(model.state_dict(), f'1DCNN_model')
+    # Test the model and print loss and accuracy, as well as correct guesses, total guesses, and the tested sample type
+    test_loss, test_accuracy, test_correct, test_total = test(model, sensitivity_loader, criterion)
+    print(
+        f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%, Test Correct: {test_correct}, Test Total: {test_total}, Sample type: {sys.argv[1]}"
+    )
 
 # Run main function
 if __name__ == "__main__":
-    print("Starting training...")
+    print("Starting sensitivity analysis...")
     main()
