@@ -7,8 +7,6 @@ from SetupInfo import SlurmSetup
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as ddp
 from torch.utils.data.distributed import DistributedSampler as ds
-import os
-os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
 # Define constants
 BATCH_SIZE = 1000
@@ -71,9 +69,9 @@ class convNetDataset(Dataset):
             features = self.transform(features)
 
         # Reshape to add channel dimension
-        features = features.reshape(1, -1)  # Adding channel dimension
+        features = features.reshape(1, -1)
 
-        # Convert to tensors
+        # Convert to tensors, ensure float 32 type
         features_tensor = torch.tensor(features, dtype=torch.float32)
         label_tensor = torch.tensor(label, dtype=torch.float32)
 
@@ -82,20 +80,20 @@ class convNetDataset(Dataset):
 class convNet(nn.Module):
     def __init__(self, input_features=80):
         super(convNet, self).__init__()
-        self.conv1 = nn.Conv1d(1, 40, kernel_size=3, padding=1) # number of filters in the first layer
-        self.relu = nn.ReLU() # activation function
-        self.pool = nn.MaxPool1d(2) # pool size
-        self.conv2 = nn.Conv1d(40, 80, kernel_size=3, padding=1) # number of filters in the second layer
-        self.fc1 = nn.Linear(3120, 100) # number of neurons in first layer
-        self.fc2 = nn.Linear(100, 1) # number of neurons in the second layer
+        self.conv1 = nn.Conv1d(1, 40, kernel_size=3, padding=1)
+        self.relu = nn.ReLU()
+        self.pool = nn.MaxPool1d(2)
+        self.conv2 = nn.Conv1d(40, 80, kernel_size=3, padding=1)
+        self.fc1 = nn.Linear(3120, 100)
+        self.fc2 = nn.Linear(100, 1)
 
     def forward(self, x):
         x = self.pool(self.relu(self.conv1(x)))
         x = self.relu(self.conv2(x))
         x = torch.flatten(x, 1)
-        num_features = x.shape[1]  # dynamically calculate the number of features
+        num_features = x.shape[1]
         if not hasattr(self, 'fc1'):
-            # initialize the fc1 layer dynamically
+            # Initialize the fc1 layer dynamically
             self.fc1 = nn.Linear(num_features, 100).to(x.device)
         x = self.relu(self.fc1(x))
         x = torch.sigmoid(self.fc2(x))
@@ -120,9 +118,11 @@ def train(model, train_loader, criterion, optimizer):
         outputs = model(data)
         loss = criterion(outputs, labels)
 
-        outputs = outputs.type(torch.float32)  # Ensure outputs are float
-        labels = labels.type(torch.float32)    # Ensure labels are float
+        # Ensure outputs and labels are floats
+        outputs = outputs.type(torch.float32)
+        labels = labels.type(torch.float32)
 
+        # Check for invalid loss
         if torch.isnan(loss) or torch.isinf(loss):
             print("Invalid loss detected")
 

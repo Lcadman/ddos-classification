@@ -74,13 +74,14 @@ class mlpDataset(Dataset):
 
 
 class mlp(nn.Module):
-    def __init__(self): # TODO clean me up and understand me, also maybe try an additional model type for comparison
+    def __init__(self):
         super(mlp, self).__init__()
-        self.layer1 = nn.Linear(79, 128)  # Input layer to first hidden layer
-        self.relu = nn.ReLU()             # Activation function
-        self.layer2 = nn.Linear(128, 64)  # Second hidden layer
-        self.output_layer = nn.Linear(64, 1)  # Output layer
-        self.sigmoid = nn.Sigmoid()       # Sigmoid activation for binary output
+        # 79 input features
+        self.layer1 = nn.Linear(79, 128)
+        self.relu = nn.ReLU()
+        self.layer2 = nn.Linear(128, 64)
+        self.output_layer = nn.Linear(64, 1)
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         x = self.relu(self.layer1(x))
