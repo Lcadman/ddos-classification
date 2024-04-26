@@ -62,7 +62,7 @@ def load_and_preprocess(csv_files, chunksize=100000):
             attack_chunk = chunk[chunk[" Label"] != "WebDDoS"]
 
             # Handle for different label names that are of the same type
-            attack_chunk[' Label'] = attack_chunk[' Label'].replace(label_corrections)
+            attack_chunk.loc[:, ' Label'] = attack_chunk[' Label'].replace(label_corrections)
 
             # Sample attack data if necessary
             if len(attack_chunk) > 1:
