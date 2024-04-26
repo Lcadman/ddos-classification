@@ -62,18 +62,20 @@ class convNetDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
+        # Get the features and label
         features = self.data.iloc[idx, :-1].values.astype("float")
         label = self.data.iloc[idx, -1]
 
+        # Apply transform if available
         if self.transform:
             features = self.transform(features)
 
+        # Reshape to add channel dimension
         features = features.reshape(1, -1)  # Adding channel dimension
 
+        # Convert to tensors
         features_tensor = torch.tensor(features, dtype=torch.float32)
         label_tensor = torch.tensor(label, dtype=torch.float32)
-
-        print("Feature tensor shape:", features_tensor.shape)  # Debug print
 
         return features_tensor, label_tensor
 
@@ -91,11 +93,10 @@ class convNet(nn.Module):
         x = self.pool(self.relu(self.conv1(x)))
         x = self.relu(self.conv2(x))
         x = torch.flatten(x, 1)
-        num_features = x.shape[1]  # Dynamically calculate the number of features
+        num_features = x.shape[1]  # dynamically calculate the number of features
         if not hasattr(self, 'fc1'):
-            # Initialize the fc1 layer dynamically based on the computed size
+            # initialize the fc1 layer dynamically
             self.fc1 = nn.Linear(num_features, 100).to(x.device)
-        print("Shape before fc1:", x.shape)  # Debugging line to check the shape
         x = self.relu(self.fc1(x))
         x = torch.sigmoid(self.fc2(x))
         return x
@@ -109,7 +110,6 @@ def train(model, train_loader, criterion, optimizer):
 
     # Loop over train loader
     for data, labels in train_loader:
-        print("Data shape:", data.shape)
         # Ensure labels are in the correct shape
         data, labels = data.float().to(device), labels.float().unsqueeze(1).to(device)
 
@@ -118,19 +118,13 @@ def train(model, train_loader, criterion, optimizer):
 
         # Forward pass on batch
         outputs = model(data)
-        print("Outputs shape:", outputs.shape)
-        print("Labels shape:", labels.shape)
         loss = criterion(outputs, labels)
 
         outputs = outputs.type(torch.float32)  # Ensure outputs are float
         labels = labels.type(torch.float32)    # Ensure labels are float
 
-        print("Loss:", loss.item())
         if torch.isnan(loss) or torch.isinf(loss):
             print("Invalid loss detected")
-
-        print("Outputs:", outputs)
-        print("Labels:", labels)
 
         # Backward pass and step optimizer
         loss.backward()
@@ -260,7 +254,7 @@ def main():
 
     # Save the model
     if setup.is_main_process():
-        torch.save(model.state_dict(), f'model_epoch_{epoch+1}')
+        torch.save(model.state_dict(), f'model_1DCNN')
 
 # Run main function
 if __name__ == "__main__":
