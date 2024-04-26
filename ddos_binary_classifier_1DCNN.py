@@ -14,9 +14,7 @@ EPOCH_COUNT = 5
 LEARNING_RATE = 0.001
 
 # Determine device
-device = (
-    "cuda" if torch.cuda.is_available() else "cpu"
-)
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 class MinMaxTransform:
@@ -97,7 +95,7 @@ class convNet(nn.Module):
         x = self.relu(self.conv2(x))
         x = torch.flatten(x, 1)
         num_features = x.shape[1]
-        if not hasattr(self, 'fc1'):
+        if not hasattr(self, "fc1"):
             # Initialize the fc1 layer dynamically
             self.fc1 = nn.Linear(num_features, 100).to(x.device)
         x = self.relu(self.fc1(x))
@@ -159,7 +157,9 @@ def test(model, test_loader, criterion):
     with torch.no_grad():
         for data, labels in test_loader:
             # Ensure labels are in the correct shape
-            data, labels = data.float().to(device), labels.float().unsqueeze(1).to(device)
+            data, labels = data.float().to(device), labels.float().unsqueeze(1).to(
+                device
+            )
 
             # Forward pass on batch
             outputs = model(data)
@@ -180,12 +180,12 @@ def test(model, test_loader, criterion):
 def main():
     # Setup Slurm
     setup = SlurmSetup()
-    print(f'rank {setup.rank}: starting communication')
+    print(f"rank {setup.rank}: starting communication")
     setup.establish_communication()
-    print(f'rank {setup.rank}: communication established')
+    print(f"rank {setup.rank}: communication established")
 
     # Set device
-    print(f'rank {setup.rank}: device is {device}')
+    print(f"rank {setup.rank}: device is {device}")
 
     # Define file paths
     train_attack = (
@@ -217,16 +217,18 @@ def main():
     train_dataset = convNetDataset(
         train_attack, train_benign, transform=min_max_transform
     )
-    test_dataset = convNetDataset(
-        test_attack, test_benign, transform=min_max_transform
-    )
+    test_dataset = convNetDataset(test_attack, test_benign, transform=min_max_transform)
 
     # Create sampler for distributed training
     train_sampler = ds(train_dataset, num_replicas=setup.world_size, rank=setup.rank)
 
     # Create DataLoaders
     train_loader = DataLoader(
-        train_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4, sampler=train_sampler,
+        train_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        num_workers=4,
+        sampler=train_sampler,
     )
     test_loader = DataLoader(
         test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4
@@ -260,7 +262,8 @@ def main():
 
     # Save the model
     if setup.is_main_process():
-        torch.save(model.state_dict(), f'1DCNN_model')
+        torch.save(model.state_dict(), f"1DCNN_model")
+
 
 # Run main function
 if __name__ == "__main__":

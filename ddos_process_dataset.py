@@ -6,15 +6,15 @@ import numpy as np
 
 # Specify the label correction dictionary
 label_corrections = {
-    'DrDoS_DNS': 'DNS',
-    'DrDoS_LDAP': 'LDAP',
-    'DrDoS_MSSQL': 'MSSQL',
-    'DrDoS_NetBIOS': 'NetBIOS',
-    'DrDoS_NTP': 'NTP',
-    'DrDoS_SNMP': 'SNMP',
-    'DrDoS_SSDP': 'SSDP',
-    'DrDoS_UDP': 'UDP',
-    'UDP-lag': 'UDPLag'
+    "DrDoS_DNS": "DNS",
+    "DrDoS_LDAP": "LDAP",
+    "DrDoS_MSSQL": "MSSQL",
+    "DrDoS_NetBIOS": "NetBIOS",
+    "DrDoS_NTP": "NTP",
+    "DrDoS_SNMP": "SNMP",
+    "DrDoS_SSDP": "SSDP",
+    "DrDoS_UDP": "UDP",
+    "UDP-lag": "UDPLag",
 }
 
 
@@ -43,18 +43,18 @@ def load_and_preprocess(csv_files, chunksize=100000):
             print("On chunk number: " + str(count))
 
             # Replace 'Infinity' and '' with NaN then drop rows with NaN
-            chunk.replace(['Infinity', ''], np.nan, inplace=True)
+            chunk.replace(["Infinity", ""], np.nan, inplace=True)
             chunk.dropna(inplace=True)
 
             # Feature reduction and label processing
-            chunk.drop('Unnamed: 0', axis=1, inplace=True)
-            chunk.drop('Flow ID', axis=1, inplace=True)
-            chunk.drop(' Source IP', axis=1, inplace=True)
-            chunk.drop(' Source Port', axis=1, inplace=True)
-            chunk.drop(' Destination IP', axis=1, inplace=True)
-            chunk.drop(' Destination Port', axis=1, inplace=True)
-            chunk.drop(' Timestamp', axis=1, inplace=True)
-            chunk.drop('SimillarHTTP', axis=1, inplace=True)
+            chunk.drop("Unnamed: 0", axis=1, inplace=True)
+            chunk.drop("Flow ID", axis=1, inplace=True)
+            chunk.drop(" Source IP", axis=1, inplace=True)
+            chunk.drop(" Source Port", axis=1, inplace=True)
+            chunk.drop(" Destination IP", axis=1, inplace=True)
+            chunk.drop(" Destination Port", axis=1, inplace=True)
+            chunk.drop(" Timestamp", axis=1, inplace=True)
+            chunk.drop("SimillarHTTP", axis=1, inplace=True)
 
             # Separate BENIGN and attack data, leave in string form we will handle in Pytorch, drop WebDDoS
             benign_chunk = chunk[chunk[" Label"] == "BENIGN"]
@@ -62,7 +62,9 @@ def load_and_preprocess(csv_files, chunksize=100000):
             attack_chunk = chunk[chunk[" Label"] != "WebDDoS"]
 
             # Handle for different label names that are of the same type
-            attack_chunk.loc[:, ' Label'] = attack_chunk[' Label'].replace(label_corrections)
+            attack_chunk.loc[:, " Label"] = attack_chunk[" Label"].replace(
+                label_corrections
+            )
 
             # Sample attack data if necessary
             if len(attack_chunk) > 1:
