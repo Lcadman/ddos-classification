@@ -1,3 +1,4 @@
+# This code was pulled from Ryan Job @ CSU's demo regarding the falcon cluster, please see https://github.com/ryanjob42/CSX75-HPC-Demo/tree/main
 from dataclasses import dataclass
 from torch.distributed import FileStore
 
