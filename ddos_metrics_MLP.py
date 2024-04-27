@@ -198,7 +198,7 @@ def main():
         f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%, Test Correct: {test_correct}, Test Total: {test_total}"
     )
     print(f"Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
-    print(f"Average time per batch: {avg_time_per_batch:.10f}, Average time per sample: {avg_time_per_sample:.10f}")
+    print(f"Average miliseconds per batch: {avg_time_per_batch:.10f}, Average miliseconds per sample: {avg_time_per_sample:.10f}")
 
 
 # Run main function
