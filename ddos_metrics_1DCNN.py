@@ -4,6 +4,7 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import torch.nn as nn
 from torchmetrics import Precision, Recall, F1Score
+import time
 
 # Define constants
 BATCH_SIZE = 1000
@@ -101,6 +102,7 @@ def test(model, test_loader, criterion):
     running_loss = 0.0
     correct = 0
     total = 0
+    total_time = 0.0
 
     # Init metrics
     precision = Precision(task="binary").to(device)
@@ -116,7 +118,10 @@ def test(model, test_loader, criterion):
             )
 
             # Forward pass on batch
+            start_time = time.time()
             outputs = model(data)
+            end_time = time.time()
+            total_time += (end_time - start_time)
             loss = criterion(outputs, labels)
 
             # Calculate loss and accuracy, store correct predictions
@@ -136,11 +141,13 @@ def test(model, test_loader, criterion):
     precision_val = precision.compute().item()
     recall_val = recall.compute().item()
     f1_val = f1.compute().item()
+    avg_time_per_batch = total_time / len(test_loader)
+    avg_time_per_sample = total_time / total
 
     # Return the average loss and accuracy, in addition to total and correct
     avg_loss = running_loss / len(test_loader)
     accuracy = 100 * correct / total
-    return avg_loss, accuracy, correct, total, precision_val, recall_val, f1_val
+    return avg_loss, accuracy, correct, total, precision_val, recall_val, f1_val, avg_time_per_batch, avg_time_per_sample
 
 
 def main():
@@ -196,13 +203,14 @@ def main():
     criterion = nn.BCELoss()
 
     # Test the model and print loss and accuracy, as well as correct guesses, total guesses, and the tested sample type
-    test_loss, test_accuracy, test_correct, test_total, precision, recall, f1 = test(
+    test_loss, test_accuracy, test_correct, test_total, precision, recall, f1, avg_time_per_batch, avg_time_per_sample = test(
         model, sensitivity_loader, criterion
     )
     print(
         f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%, Test Correct: {test_correct}, Test Total: {test_total}"
     )
     print(f"Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
+    print(f"Average time per batch: {avg_time_per_batch:.2f}, Average time per sample: {avg_time_per_sample:.4f}")
 
 
 # Run main function
