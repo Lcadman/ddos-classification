@@ -141,8 +141,8 @@ def test(model, test_loader, criterion):
     precision_val = precision.compute().item()
     recall_val = recall.compute().item()
     f1_val = f1.compute().item()
-    avg_time_per_batch = total_time / len(test_loader)
-    avg_time_per_sample = total_time / total
+    avg_time_per_batch = (total_time / len(test_loader)) * 1000
+    avg_time_per_sample = (total_time / total) * 1000
 
     # Return the average loss and accuracy, in addition to total and correct
     avg_loss = running_loss / len(test_loader)
@@ -210,7 +210,7 @@ def main():
         f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%, Test Correct: {test_correct}, Test Total: {test_total}"
     )
     print(f"Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
-    print(f"Average time per batch: {avg_time_per_batch:.2f}, Average time per sample: {avg_time_per_sample:.2f}")
+    print(f"Average miliseconds per batch: {avg_time_per_batch:.10f}, Average miliseconds per sample: {avg_time_per_sample:.10f}")
 
 
 # Run main function
